@@ -6,11 +6,6 @@ For more information about the gh api, please refer to the [official documentati
 
 ## Installation
 
-## Dependencies
-
-gh_taskw can be configered to use [tasknote](https://github.com/Jimmy2027/TaskNote).
-If you choose to use tasknote, you will need to install it and configure it.
-
 ### pip
 
 ```bash
@@ -18,6 +13,21 @@ $ git clone https://github.com/Jimmy2027/gh_taskw.git
 $ cd gh_taskw
 $ pip install .
 ```
+
+### Portage
+
+The package is made available in [a portage overlay](https://github.com/Jimmy2027/overlay).
+
+```shell
+root@host $ emerge gh_taskw
+```
+
+## Dependencies
+
+[Github CLI](https://cli.github.com/) needs to be installed and [configured](https://cli.github.com/manual/gh_auth_login).
+
+gh_taskw can be configered to use [tasknote](https://github.com/Jimmy2027/TaskNote).
+If you choose to use tasknote, you will need to install it and configure it.
 
 ## Example Configuration
 
@@ -32,7 +42,6 @@ ignore_notification_reasons = ["ci_activity"]
 
 ```
 
-
 ## Usage
 
 ### As a cron job
@@ -42,6 +51,7 @@ ignore_notification_reasons = ["ci_activity"]
 ```
 
 ### As a tmux session
+
 ```bash
 #!/bin/bash
 
