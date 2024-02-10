@@ -1,3 +1,6 @@
+from pathlib import Path
+import tomllib
+from typing import Optional
 from gh_taskw.utils import run_command
 
 
@@ -19,12 +22,45 @@ class TaskwarriorHandler:
         Adds a tasknote to a Taskwarrior task.
     """
 
+    def __init__(self, tasknote_handler=None, ignore_notification_reasons=None):
+        self.tasknote_handler = tasknote_handler
+
+        self.tasknote_fn = None
+        self.ignore_notification_reasons = ignore_notification_reasons
+
+    @classmethod
+    def from_config(cls, config_file: Optional[Path] = None):
+        if config_file is None:
+            config_file = Path("~/.config/gh_taskw.toml").expanduser()
+
+        toml_config = config_file.read_text()
+
+        toml_dict = tomllib.loads(toml_config)
+
+        if "tasknote_config" in toml_dict:
+            from tasknote.tasknote_handler import TaskNoteHandler
+
+            tasknote_handler = TaskNoteHandler.from_config(
+                Path(toml_dict.pop("tasknote_config"))
+            )
+        else:
+            tasknote_handler = None
+        return cls(tasknote_handler=tasknote_handler, **toml_dict)
+
     def process_gh_notification(self, reason, subject, repository, url):
         """
         Processes a GitHub notification, adding a task and a tasknote to Taskwarrior.
         """
+        if reason in self.ignore_notification_reasons:
+            return
+
+        # send a notification to the system
+        run_command(["notify-send", "GitHub", f"{reason}: {subject}"])
+
         task_id = self.add_task(reason, subject, repository)
-        self.add_tasknote(subject, reason, task_id, url)
+
+        if self.tasknote_handler:
+            self.add_tasknote(subject, reason, task_id, url)
 
     def add_task(self, reason, subject, repository):
         """
@@ -39,12 +75,8 @@ class TaskwarriorHandler:
         """
         Adds a tasknote to a Taskwarrior task.
         """
-        cmd = f"tasknote {task_id} --create_only"
-        tasknote_creation_return = run_command(cmd.split(" "))
-        tasknote_path = [e for e in tasknote_creation_return.split("\n") if ".md" in e][
-            0
-        ]
+        self.tasknote_fn = self.tasknote_handler.create_note(task_id)
 
         metadata = [url, f"title: {subject}", f"type: {reason}"]
-        with open(tasknote_path, "a") as textfile:
+        with open(self.tasknote_fn, "a") as textfile:
             textfile.write("\n".join(metadata))

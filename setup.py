@@ -4,13 +4,10 @@
 
 from setuptools import setup, find_packages
 
-with open("README.rst") as readme_file:
+with open("README.md") as readme_file:
     readme = readme_file.read()
 
-with open("HISTORY.rst") as history_file:
-    history = history_file.read()
-
-requirements = ["Click>=7.0", "pandas=2.2", "loguru>=0.5.3"]
+requirements = ["Click>=7.0", "pandas>=2.1", "loguru>=0.5.3"]
 
 test_requirements = [
     "pytest>=3",
@@ -32,11 +29,11 @@ setup(
     ],
     description="Convert GitHub notifications to taskwarrior tasks",
     entry_points={
-        "console_scripts": ["gh_taskw=gh_taskw.cli:main", "meh=gh_taskw.cli:main"],
+        "console_scripts": ["gh_taskw=gh_taskw.cli:main"],
     },
     install_requires=requirements,
     license="MIT license",
-    long_description=readme + "\n\n" + history,
+    long_description=readme + "\n",
     include_package_data=True,
     keywords="gh_taskw",
     name="gh_taskw",

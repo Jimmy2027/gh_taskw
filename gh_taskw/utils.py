@@ -12,7 +12,6 @@ Regardless of the 'reason', the notification is marked as read using the GitHub 
 import subprocess
 import json
 import pandas as pd
-import userlog
 
 
 def run_command(cmd):
@@ -48,7 +47,6 @@ def log_errors(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            userlog.logger.error(f"{str(e)}")
             run_command(
                 [
                     "notify-send",
