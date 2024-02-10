@@ -21,7 +21,7 @@ def process_row(row, tw_handler: TaskwarriorHandler):
         reason=row["reason"],
         subject=row["subject"]["title"],
         repository=row["repository"]["name"],
-        url=row["subject"]["url"],
+        url=row["subject"].get("url", ""),
     )
 
 
