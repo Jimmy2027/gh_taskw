@@ -22,11 +22,18 @@ class TaskwarriorHandler:
         Adds a tasknote to a Taskwarrior task.
     """
 
-    def __init__(self, tasknote_handler=None, ignore_notification_reasons=None):
+    def __init__(
+        self,
+        tasknote_handler=None,
+        ignore_notification_reasons=None,
+        high_priority_reasons=None,
+    ):
         self.tasknote_handler = tasknote_handler
 
         self.tasknote_fn = None
         self.ignore_notification_reasons = ignore_notification_reasons
+
+        self.high_priority_reasons = high_priority_reasons or []
 
     @classmethod
     def from_config(cls, config_file: Optional[Path] = None):
@@ -55,7 +62,11 @@ class TaskwarriorHandler:
             return
 
         # send a notification to the system
-        run_command(["notify-send", "GitHub", f"{reason}: {subject}"])
+        cmd = ["notify-send", "GitHub", f"{reason}: {subject}"]
+        if reason in self.high_priority_reasons:
+            cmd.append("-u")
+            cmd.append("critical")
+        run_command(cmd)
 
         task_id = self.add_task(reason, subject, repository)
 
@@ -67,6 +78,8 @@ class TaskwarriorHandler:
         Adds a task to Taskwarrior and returns the task ID.
         """
         cmd = f'task add "{reason}: {subject}"  proj:{repository} +github +{reason}'
+        if reason in self.high_priority_reasons:
+            cmd += " priority:H"
         task_add_return = run_command(cmd.split(" "))
         task_id = int(task_add_return.split(" ")[2].strip().strip("."))
         return task_id
