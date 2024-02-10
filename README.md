@@ -40,3 +40,17 @@ ignore_notification_reasons = ["ci_activity"]
 ```cron
 * * * * * /usr/bin/gh_taskw
 ```
+
+### As a tmux session
+```bash
+#!/bin/bash
+
+
+session="gh_taskw"
+
+tmux new-session -d -s $session
+
+window=1
+tmux send-keys -t $session:$window 'watch -n 60 gh_taskw' C-m
+
+```
