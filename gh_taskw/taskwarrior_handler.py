@@ -61,8 +61,12 @@ class TaskwarriorHandler:
         if reason in self.ignore_notification_reasons:
             return
 
+        url = self.format_url(url)
+
         # send a notification to the system
-        cmd = ["notify-send", "GitHub", f"{reason}: {subject}"]
+        cmd = ["dunstify", f"GitHub", f"{reason}: {subject}\n{url}"]
+
+        # critical notifications
         if reason in self.high_priority_reasons:
             cmd.append("-u")
             cmd.append("critical")
@@ -84,18 +88,24 @@ class TaskwarriorHandler:
         task_id = int(task_add_return.split(" ")[2].strip().strip("."))
         return task_id
 
-    def add_tasknote(self, subject, reason, task_id, url):
+    def format_url(self, url):
         """
-        Adds a tasknote to a Taskwarrior task.
+        Formats a GitHub api URL to a normal url.
         """
-        self.tasknote_fn = self.tasknote_handler.create_note(task_id)
-
         if url:
             url = (
                 url.replace("api.", "")
                 .replace("/repos/", "/")
                 .replace("/pulls/", "/pull/")
             )
+        return url
+
+    def add_tasknote(self, subject, reason, task_id, url):
+        """
+        Adds a tasknote to a Taskwarrior task.
+        """
+        self.tasknote_fn = self.tasknote_handler.create_note(task_id)
+
         metadata = [url, f"title: {subject}", f"type: {reason}"]
         with open(self.tasknote_fn, "a") as textfile:
             textfile.write("\n".join(metadata))
