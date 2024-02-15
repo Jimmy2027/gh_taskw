@@ -28,10 +28,12 @@ def prepare_config(tmpdir, with_tasknote: bool):
     config_fn = tmpdir / "gh_taskw.toml"
     tasknote_config_fn = tmpdir / "tasknote.toml"
 
-    if with_tasknote:
-        gh_taskw_config = GH_TASKW_CONFIG + gh_taskw_tasknote_config.format(
+    gh_taskw_tasknote_config.format(
             tasknote_config=tasknote_config_fn
         )
+
+    if with_tasknote:
+        gh_taskw_config = GH_TASKW_CONFIG + f"\ntasknote_config = \"{tasknote_config_fn}\"\n"
     else:
         gh_taskw_config = GH_TASKW_CONFIG
 
@@ -74,4 +76,4 @@ def test_taskwarrior_handler(with_tasknote: bool):
 
 
 if __name__ == "__main__":
-    test_taskwarrior_handler(False)
+    test_taskwarrior_handler(True)
