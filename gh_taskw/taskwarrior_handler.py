@@ -91,7 +91,11 @@ class TaskwarriorHandler:
         self.tasknote_fn = self.tasknote_handler.create_note(task_id)
 
         if url:
-            url.replace("api.", "").replace("/repos/", "/").replace("/pulls/", "/pull/")
+            url = (
+                url.replace("api.", "")
+                .replace("/repos/", "/")
+                .replace("/pulls/", "/pull/")
+            )
         metadata = [url, f"title: {subject}", f"type: {reason}"]
         with open(self.tasknote_fn, "a") as textfile:
             textfile.write("\n".join(metadata))
