@@ -17,6 +17,9 @@ GH_TASKW_CONFIG = """
 # ignore notifications from ci runs for example
 ignore_notification_reasons = ["ci_activity"]
 
+high_priority_reasons = ["review_requested"]
+add_task_for_reasons = ["review_requested"]
+
 """
 
 tasknote_config = """
@@ -28,12 +31,12 @@ def prepare_config(tmpdir, with_tasknote: bool):
     config_fn = tmpdir / "gh_taskw.toml"
     tasknote_config_fn = tmpdir / "tasknote.toml"
 
-    gh_taskw_tasknote_config.format(
-            tasknote_config=tasknote_config_fn
-        )
+    gh_taskw_tasknote_config.format(tasknote_config=tasknote_config_fn)
 
     if with_tasknote:
-        gh_taskw_config = GH_TASKW_CONFIG + f"\ntasknote_config = \"{tasknote_config_fn}\"\n"
+        gh_taskw_config = (
+            GH_TASKW_CONFIG + f'\ntasknote_config = "{tasknote_config_fn}"\n'
+        )
     else:
         gh_taskw_config = GH_TASKW_CONFIG
 
