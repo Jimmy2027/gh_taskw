@@ -3,6 +3,7 @@
 from pathlib import Path
 import sys
 import click
+from gh_taskw.gh_notification import GhNotification
 
 from gh_taskw.utils import (
     get_notifications,
@@ -18,10 +19,7 @@ def process_row(row, tw_handler: TaskwarriorHandler):
     if not "test" in row:
         mark_notification_as_read(row["id"])
     tw_handler.process_gh_notification(
-        reason=row["reason"],
-        subject=row["subject"]["title"],
-        repository=row["repository"]["name"],
-        url=row["subject"].get("url", ""),
+        GhNotification.from_notification_dict(row.to_dict())
     )
 
 
@@ -31,9 +29,11 @@ def main(args=None):
     taskwarrior_handler = TaskwarriorHandler.from_config(
         Path("~/.config/gh_taskw.toml").expanduser()
     )
-    df = get_notifications()
+    df = get_notifications( log_fn=taskwarrior_handler.logfile)
     if not df.empty:
         df.apply(lambda x: process_row(x, taskwarrior_handler), axis=1)
+
+    taskwarrior_handler.handle_closed_prs()
 
 
 if __name__ == "__main__":

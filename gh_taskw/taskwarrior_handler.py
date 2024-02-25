@@ -1,6 +1,12 @@
-from pathlib import Path
+import json
+import subprocess
 import tomllib
+from pathlib import Path
 from typing import Optional
+
+from taskw import TaskWarriorShellout
+
+from gh_taskw.gh_notification import GhNotification
 from gh_taskw.utils import run_command
 
 
@@ -27,13 +33,21 @@ class TaskwarriorHandler:
         tasknote_handler=None,
         ignore_notification_reasons=None,
         high_priority_reasons=None,
+        add_task_for_reasons=None,
+        logfile: Path = None,
     ):
         self.tasknote_handler = tasknote_handler
 
         self.tasknote_fn = None
-        self.ignore_notification_reasons = ignore_notification_reasons
-
+        self.ignore_notification_reasons: list[str] = ignore_notification_reasons
+        self.add_task_for_reasons = add_task_for_reasons or []
         self.high_priority_reasons = high_priority_reasons or []
+
+        self.logfile = logfile
+
+        self.tw = TaskWarriorShellout(
+            marshal=True,
+        )
 
     @classmethod
     def from_config(cls, config_file: Optional[Path] = None):
@@ -52,60 +66,106 @@ class TaskwarriorHandler:
             )
         else:
             tasknote_handler = None
+        toml_dict["logfile"] = (
+            Path(toml_dict["logfile"]).expanduser() if "logfile" in toml_dict else None
+        )
         return cls(tasknote_handler=tasknote_handler, **toml_dict)
 
-    def process_gh_notification(self, reason, subject, repository, url):
+    def process_gh_notification(self, gh_notification: GhNotification):
         """
         Processes a GitHub notification, adding a task and a tasknote to Taskwarrior.
         """
-        if reason in self.ignore_notification_reasons:
+        if gh_notification.reason in self.ignore_notification_reasons:
             return
 
-        url = self.format_url(url)
+        url = gh_notification.url
 
         # send a notification to the system
-        cmd = ["dunstify", f"GitHub", f"{reason}: {subject}\n{url}"]
+        cmd = [
+            "dunstify",
+            f"GitHub",
+            f"{gh_notification.reason}: {gh_notification.subject}\n{url}",
+        ]
 
         # critical notifications
-        if reason in self.high_priority_reasons:
+        if gh_notification.reason in self.high_priority_reasons:
             cmd.append("-u")
             cmd.append("critical")
         run_command(cmd)
 
-        task_id = self.add_task(reason, subject, repository)
+        task_id = self.add_task(gh_notification)
 
         if self.tasknote_handler:
-            self.add_tasknote(subject, reason, task_id, url)
+            self.add_tasknote(gh_notification=gh_notification, task_id=task_id)
 
-    def add_task(self, reason, subject, repository):
+    def add_task(self, gh_notification: GhNotification):
         """
         Adds a task to Taskwarrior and returns the task ID.
         """
-        cmd = f'task add "{reason}: {subject}"  proj:{repository} +github +{reason}'
-        if reason in self.high_priority_reasons:
-            cmd += " priority:H"
-        task_add_return = run_command(cmd.split(" "))
-        task_id = int(task_add_return.split(" ")[2].strip().strip("."))
-        return task_id
 
-    def format_url(self, url):
-        """
-        Formats a GitHub api URL to a normal url.
-        """
-        if url:
-            url = (
-                url.replace("api.", "")
-                .replace("/repos/", "/")
-                .replace("/pulls/", "/pull/")
+        kwargs = (
+            {"priority": "H"}
+            if gh_notification.reason in self.high_priority_reasons
+            else {}
+        )
+
+        if gh_notification.reason in self.add_task_for_reasons:
+            added_task = self.tw.task_add(
+                description=f"{gh_notification.reason}: {gh_notification.subject}",
+                project=gh_notification.repository,
+                tags=[gh_notification.reason, "github"],
+                githuburl=gh_notification.url,
+                **kwargs,
             )
-        return url
 
-    def add_tasknote(self, subject, reason, task_id, url):
+            return added_task["id"]
+
+    def add_tasknote(self, gh_notification: GhNotification, task_id: int):
         """
         Adds a tasknote to a Taskwarrior task.
         """
         self.tasknote_fn = self.tasknote_handler.create_note(task_id)
 
-        metadata = [url, f"title: {subject}", f"type: {reason}"]
+        metadata = [
+            gh_notification.url,
+            f"title: {gh_notification.subject}",
+            f"type: {gh_notification.reason}",
+        ]
         with open(self.tasknote_fn, "a") as textfile:
             textfile.write("\n".join(metadata))
+
+    def handle_closed_prs(self):
+        """
+        Close all tasks for closed pr's.
+        """
+        pr_tasks = json.loads(
+            subprocess.check_output(
+                ["task", "status:pending", "+github", "+review_requested", "export"]
+            ).decode("utf-8")
+        )
+
+        for pr_task in pr_tasks:
+            if pr_task.get("githuburl"):
+                repo = pr_task["project"]
+                owner = pr_task["githuburl"].split("/")[3]
+                pr_id = pr_task["githuburl"].split("/")[6]
+                gh_api_cmd = [
+                    "gh",
+                    "api",
+                    "-H",
+                    "Accept: application/vnd.github+json",
+                    f"/repos/{owner}/{repo}/pulls/{pr_id}",
+                ]
+
+                pr_dict = json.loads(
+                    subprocess.check_output(gh_api_cmd).decode("utf-8")
+                )
+                is_closed = pr_dict["state"] == "closed"
+            else:
+                is_closed = True
+                pr_id = pr_task["description"].split(":")[-1].strip()
+
+            if is_closed:
+                notify_cmd = ["dunstify", "GitHub", f"PR {pr_id} is closed"]
+                subprocess.run(notify_cmd)
+                subprocess.run(["task", str(pr_task["id"]), "done"])

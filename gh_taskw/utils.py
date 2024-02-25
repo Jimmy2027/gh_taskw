@@ -9,6 +9,7 @@ Regardless of the 'reason', the notification is marked as read using the GitHub 
 
 """
 
+from pathlib import Path
 import subprocess
 import json
 import pandas as pd
@@ -26,13 +27,39 @@ def run_command(cmd):
     return result.stdout
 
 
-def get_notifications():
+def mylog(issue_dict: dict, logfile: Path = None):
+    import json
+    from datetime import datetime
+    from pathlib import Path
+
+    if not logfile.exists():
+        json_dict = {}
+
+    else:
+        # Load existing data
+        with open(logfile, "r") as textfile:
+            json_dict = json.load(textfile)
+
+    # Add new data
+    now = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    json_dict[now] = issue_dict
+
+    # Write back to file
+    with open(logfile, "w") as textfile:
+        json.dump(json_dict, textfile)
+
+
+def get_notifications(log_fn: Path = None):
     """
     Get all unread notifications using the GitHub CLI and return them as a DataFrame.
     """
 
     # API command to get unread notifications
     notifications_json = run_command(["gh", "api", "notifications"])
+
+    if log_fn:
+        mylog(json.loads(notifications_json), logfile=log_fn)
+
     # Parse the output into a DataFrame
     notifications_df = pd.DataFrame(json.loads(notifications_json))
     return notifications_df
