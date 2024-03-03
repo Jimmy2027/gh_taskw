@@ -29,7 +29,7 @@ def main(args=None):
     taskwarrior_handler = TaskwarriorHandler.from_config(
         Path("~/.config/gh_taskw.toml").expanduser()
     )
-    df = get_notifications( log_fn=taskwarrior_handler.logfile)
+    df = get_notifications(log_fn=taskwarrior_handler.logfile)
     if not df.empty:
         df.apply(lambda x: process_row(x, taskwarrior_handler), axis=1)
 

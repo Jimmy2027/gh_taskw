@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 This script is used to fetch GitHub notifications and process them.
 
@@ -12,6 +11,7 @@ Regardless of the 'reason', the notification is marked as read using the GitHub 
 from pathlib import Path
 import subprocess
 import json
+from typing import Optional
 import pandas as pd
 
 
@@ -30,7 +30,6 @@ def run_command(cmd):
 def mylog(issue_dict: dict, logfile: Path = None):
     import json
     from datetime import datetime
-    from pathlib import Path
 
     if not logfile.exists():
         json_dict = {}
@@ -49,7 +48,7 @@ def mylog(issue_dict: dict, logfile: Path = None):
         json.dump(json_dict, textfile)
 
 
-def get_notifications(log_fn: Path = None):
+def get_notifications(log_fn: Optional[Path] = None):
     """
     Get all unread notifications using the GitHub CLI and return them as a DataFrame.
     """

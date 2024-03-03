@@ -7,7 +7,7 @@ from typing import Optional
 from taskw import TaskWarriorShellout
 
 from gh_taskw.gh_notification import GhNotification
-from gh_taskw.utils import run_command
+from gh_taskw.notifier import Notifier, NotifierNotification
 
 
 class TaskwarriorHandler:
@@ -34,12 +34,13 @@ class TaskwarriorHandler:
         ignore_notification_reasons=None,
         high_priority_reasons=None,
         add_task_for_reasons=None,
-        logfile: Path = None,
+        logfile: Optional[Path] = None,
+        notifier: Optional[Notifier] = None,
     ):
         self.tasknote_handler = tasknote_handler
 
         self.tasknote_fn = None
-        self.ignore_notification_reasons: list[str] = ignore_notification_reasons
+        self.ignore_notification_reasons: list[str] = ignore_notification_reasons or []
         self.add_task_for_reasons = add_task_for_reasons or []
         self.high_priority_reasons = high_priority_reasons or []
 
@@ -48,6 +49,12 @@ class TaskwarriorHandler:
         self.tw = TaskWarriorShellout(
             marshal=True,
         )
+
+        self.notifier: Optional[Notifier] = notifier
+
+    def _send_notification(self, notifier_notification: NotifierNotification):
+        if self.notifier:
+            self.notifier.notify(notifier_notification)
 
     @classmethod
     def from_config(cls, config_file: Optional[Path] = None):
@@ -69,7 +76,16 @@ class TaskwarriorHandler:
         toml_dict["logfile"] = (
             Path(toml_dict["logfile"]).expanduser() if "logfile" in toml_dict else None
         )
-        return cls(tasknote_handler=tasknote_handler, **toml_dict)
+        notification_config = toml_dict.pop("notifications", None)
+        return cls(
+            tasknote_handler=tasknote_handler,
+            notifier=(
+                Notifier.from_config(notification_config)
+                if notification_config
+                else None
+            ),
+            **toml_dict,
+        )
 
     def process_gh_notification(self, gh_notification: GhNotification):
         """
@@ -81,21 +97,21 @@ class TaskwarriorHandler:
         url = gh_notification.url
 
         # send a notification to the system
-        cmd = [
-            "dunstify",
-            f"GitHub",
-            f"{gh_notification.reason}: {gh_notification.subject}\n{url}",
-        ]
-
-        # critical notifications
-        if gh_notification.reason in self.high_priority_reasons:
-            cmd.append("-u")
-            cmd.append("critical")
-        run_command(cmd)
+        self._send_notification(
+            NotifierNotification(
+                title="GitHub",
+                body=f"{gh_notification.reason}: {gh_notification.subject}\n{url}",
+                urgency=(
+                    "critical"
+                    if gh_notification.reason in self.high_priority_reasons
+                    else "normal"
+                ),
+            )
+        )
 
         task_id = self.add_task(gh_notification)
 
-        if self.tasknote_handler:
+        if task_id and self.tasknote_handler:
             self.add_tasknote(gh_notification=gh_notification, task_id=task_id)
 
     def add_task(self, gh_notification: GhNotification):
@@ -166,6 +182,10 @@ class TaskwarriorHandler:
                 pr_id = pr_task["description"].split(":")[-1].strip()
 
             if is_closed:
-                notify_cmd = ["dunstify", "GitHub", f"PR {pr_id} is closed"]
-                subprocess.run(notify_cmd)
-                subprocess.run(["task", str(pr_task["id"]), "done"])
+                self.notifier.notify(
+                    NotifierNotification(
+                        title="GitHub",
+                        body=f"PR {pr_id} is closed",
+                        urgency="normal",
+                    )
+                )
