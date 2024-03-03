@@ -5,7 +5,7 @@ import tomllib
 from pathlib import Path
 from typing import Optional
 
-from taskw import TaskWarriorShellout
+from tasklib import TaskWarrior, Task
 
 from gh_taskw.gh_notification import GhNotification
 from gh_taskw.notifier import Notifier, NotifierNotification
@@ -49,9 +49,7 @@ class TaskwarriorHandler:
 
         self.logfile = logfile
 
-        self.tw = TaskWarriorShellout(
-            marshal=True,
-        )
+        self.tw = TaskWarrior()
 
         self.notifier: Optional[Notifier] = notifier
 
@@ -143,15 +141,17 @@ class TaskwarriorHandler:
         )
 
         if gh_notification.reason in self.add_task_for_reasons:
-            added_task = self.tw.task_add(
+            added_task = Task(
+                self.tw,
                 description=f"{gh_notification.reason}: {gh_notification.subject}",
                 project=gh_notification.repository,
                 tags=[gh_notification.reason, "github"],
                 githuburl=gh_notification.url,
                 **kwargs,
             )
+            added_task.save()
 
-            return added_task["id"]
+            return added_task._data["id"]
 
     def add_tasknote(self, gh_notification: GhNotification, task_id: int):
         """
@@ -171,18 +171,18 @@ class TaskwarriorHandler:
         """
         Close all tasks for closed pr's.
         """
-        pr_tasks = json.loads(
-            subprocess.check_output(
-                ["task", "status:pending", "+github", "+review_requested", "export"]
-            ).decode("utf-8")
-        )
+        # Couldn't find out how to do this properly in the tasklib doc
+        # so this is a bit ugly...
+        pr_tasks = self.tw.tasks.pending().filter(tags=["github", "review_requested"])
+        print(pr_tasks)
 
-        for pr_task in pr_tasks:
-            if pr_task.get("githuburl"):
-                repo = pr_task["project"]
-                if "pull" in pr_task["githuburl"]:
-                    owner = pr_task["githuburl"].split("/")[3]
-                    pr_id = pr_task["githuburl"].split("/")[6]
+        for pr_task_obj in pr_tasks._result_cache:
+            pr_task_data = pr_task_obj._data
+            if pr_task_data.get("githuburl"):
+                repo = pr_task_data["project"]
+                if "pull" in pr_task_data["githuburl"]:
+                    owner = pr_task_data["githuburl"].split("/")[3]
+                    pr_id = pr_task_data["githuburl"].split("/")[6]
                     gh_api_cmd = [
                         "gh",
                         "api",
@@ -199,10 +199,10 @@ class TaskwarriorHandler:
                     is_closed = pr_dict["state"] == "closed"
                 else:
                     is_closed = True
-                    pr_id = pr_task["description"].split(":")[-1].strip()
+                    pr_id = pr_task_data["description"].split(":")[-1].strip()
             else:
                 is_closed = True
-                pr_id = pr_task["description"].split(":")[-1].strip()
+                pr_id = pr_task_data["description"].split(":")[-1].strip()
 
             if is_closed:
                 self.notifier.notify(
@@ -212,3 +212,5 @@ class TaskwarriorHandler:
                         urgency="normal",
                     )
                 )
+                # mark task as done
+                pr_task_obj.done()
