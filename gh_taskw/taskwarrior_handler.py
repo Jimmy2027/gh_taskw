@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import tomllib
 from pathlib import Path
@@ -36,10 +37,12 @@ class TaskwarriorHandler:
         add_task_for_reasons=None,
         logfile: Optional[Path] = None,
         notifier: Optional[Notifier] = None,
+        gh_token: Optional[str] = None,
     ):
         self.tasknote_handler = tasknote_handler
 
         self.tasknote_fn = None
+        self.gh_token = gh_token
         self.ignore_notification_reasons: list[str] = ignore_notification_reasons or []
         self.add_task_for_reasons = add_task_for_reasons or []
         self.high_priority_reasons = high_priority_reasons or []
@@ -51,6 +54,14 @@ class TaskwarriorHandler:
         )
 
         self.notifier: Optional[Notifier] = notifier
+
+        self.env = self._set_env()
+
+    def _set_env(self):
+        env = os.environ.copy()
+        if self.gh_token is not None:
+            env["GH_TOKEN"] = self.gh_token
+        return env
 
     def _send_notification(self, notifier_notification: NotifierNotification):
         if self.notifier:
@@ -65,6 +76,7 @@ class TaskwarriorHandler:
 
         toml_dict = tomllib.loads(toml_config)
 
+        # get tasknote config
         if "tasknote_config" in toml_dict:
             from tasknote.tasknote_handler import TaskNoteHandler
 
@@ -73,10 +85,15 @@ class TaskwarriorHandler:
             )
         else:
             tasknote_handler = None
+
+        # check if logfile is set
         toml_dict["logfile"] = (
             Path(toml_dict["logfile"]).expanduser() if "logfile" in toml_dict else None
         )
+
+        # check if gh token is set
         notification_config = toml_dict.pop("notifications", None)
+
         return cls(
             tasknote_handler=tasknote_handler,
             notifier=(

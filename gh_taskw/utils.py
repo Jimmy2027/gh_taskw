@@ -15,11 +15,11 @@ from typing import Optional
 import pandas as pd
 
 
-def run_command(cmd):
+def run_command(cmd, env_vars: Optional[dict] = None):
     """
     Run a command and return the output as a string.
     """
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, env=env_vars)
     if result.returncode != 0:
         raise Exception(
             f"Command failed with error code {result.returncode}\n{result.stderr}"
@@ -48,13 +48,13 @@ def mylog(issue_dict: dict, logfile: Path = None):
         json.dump(json_dict, textfile)
 
 
-def get_notifications(log_fn: Optional[Path] = None):
+def get_notifications(log_fn: Optional[Path] = None, env: Optional[dict] = None):
     """
     Get all unread notifications using the GitHub CLI and return them as a DataFrame.
     """
 
     # API command to get unread notifications
-    notifications_json = run_command(["gh", "api", "notifications"])
+    notifications_json = run_command(["gh", "api", "notifications"], env=env)
 
     if log_fn:
         mylog(json.loads(notifications_json), logfile=log_fn)
