@@ -37,12 +37,12 @@ class TaskwarriorHandler:
         add_task_for_reasons=None,
         logfile: Optional[Path] = None,
         notifier: Optional[Notifier] = None,
-        gh_token: Optional[str] = None,
+        github_token: Optional[str] = None,
     ):
         self.tasknote_handler = tasknote_handler
 
         self.tasknote_fn = None
-        self.gh_token = gh_token
+        self.gh_token = github_token
         self.ignore_notification_reasons: list[str] = ignore_notification_reasons or []
         self.add_task_for_reasons = add_task_for_reasons or []
         self.high_priority_reasons = high_priority_reasons or []
@@ -180,20 +180,26 @@ class TaskwarriorHandler:
         for pr_task in pr_tasks:
             if pr_task.get("githuburl"):
                 repo = pr_task["project"]
-                owner = pr_task["githuburl"].split("/")[3]
-                pr_id = pr_task["githuburl"].split("/")[6]
-                gh_api_cmd = [
-                    "gh",
-                    "api",
-                    "-H",
-                    "Accept: application/vnd.github+json",
-                    f"/repos/{owner}/{repo}/pulls/{pr_id}",
-                ]
+                if "pull" in pr_task["githuburl"]:
+                    owner = pr_task["githuburl"].split("/")[3]
+                    pr_id = pr_task["githuburl"].split("/")[6]
+                    gh_api_cmd = [
+                        "gh",
+                        "api",
+                        "-H",
+                        "Accept: application/vnd.github+json",
+                        f"/repos/{owner}/{repo}/pulls/{pr_id}",
+                    ]
 
-                pr_dict = json.loads(
-                    subprocess.check_output(gh_api_cmd).decode("utf-8")
-                )
-                is_closed = pr_dict["state"] == "closed"
+                    pr_dict = json.loads(
+                        subprocess.check_output(gh_api_cmd, env=self.env).decode(
+                            "utf-8"
+                        )
+                    )
+                    is_closed = pr_dict["state"] == "closed"
+                else:
+                    is_closed = True
+                    pr_id = pr_task["description"].split(":")[-1].strip()
             else:
                 is_closed = True
                 pr_id = pr_task["description"].split(":")[-1].strip()

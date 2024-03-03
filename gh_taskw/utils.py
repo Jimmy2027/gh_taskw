@@ -54,7 +54,7 @@ def get_notifications(log_fn: Optional[Path] = None, env: Optional[dict] = None)
     """
 
     # API command to get unread notifications
-    notifications_json = run_command(["gh", "api", "notifications"], env=env)
+    notifications_json = run_command(["gh", "api", "notifications"], env_vars=env)
 
     if log_fn:
         mylog(json.loads(notifications_json), logfile=log_fn)
@@ -90,7 +90,7 @@ def log_errors(func):
     return wrapper
 
 
-def mark_notification_as_read(notification_id):
+def mark_notification_as_read(notification_id, env_vars: Optional[dict] = None):
     # API command to mark a notification as read
     run_command(
         [
@@ -100,5 +100,6 @@ def mark_notification_as_read(notification_id):
             "--method",
             "PATCH",
             f"notifications/threads/{notification_id}",
-        ]
+        ],
+        env_vars=env_vars,
     )
