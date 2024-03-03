@@ -141,15 +141,22 @@ class TaskwarriorHandler:
         )
 
         if gh_notification.reason in self.add_task_for_reasons:
-            added_task = Task(
-                self.tw,
-                description=f"{gh_notification.reason}: {gh_notification.subject}",
-                project=gh_notification.repository,
-                tags=[gh_notification.reason, "github"],
-                githuburl=gh_notification.url,
-                **kwargs,
+            tags = [gh_notification.reason, "github"]
+            # check if task already exists
+            task_exists = len(
+                self.tw.tasks.filter(githuburl=gh_notification.url, tags=tags).pending()
             )
-            added_task.save()
+
+            if not task_exists:
+                added_task = Task(
+                    self.tw,
+                    description=f"{gh_notification.reason}: {gh_notification.subject}",
+                    project=gh_notification.repository,
+                    tags=tags,
+                    githuburl=gh_notification.url,
+                    **kwargs,
+                )
+                added_task.save()
 
             return added_task._data["id"]
 
