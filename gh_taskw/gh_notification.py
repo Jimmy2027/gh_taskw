@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from loguru import logger
 
 
 def format_url(url):
@@ -63,6 +64,7 @@ class GhNotification:
 
     @classmethod
     def from_notification_dict(cls, notification_dict: dict):
+        logger.debug(f"Creating GhNotification from {notification_dict}")
         url = get_url(notification_dict)
         return cls(
             reason=notification_dict["reason"],

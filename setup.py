@@ -7,7 +7,7 @@ from setuptools import setup, find_packages
 with open("README.md") as readme_file:
     readme = readme_file.read()
 
-requirements = ["Click>=7.0", "pandas>=2.1", "loguru>=0.5.3", "tasklib"]
+requirements = ["Click>=7.0", "pandas>=2.1", "loguru>=0.5.3", "tasklib", "loguru"]
 
 test_requirements = [
     "pytest>=3",

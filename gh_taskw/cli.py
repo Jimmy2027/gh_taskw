@@ -17,7 +17,7 @@ from gh_taskw.taskwarrior_handler import TaskwarriorHandler
 def process_row(row, tw_handler: TaskwarriorHandler):
     # mark the notification as read first to make sure a task is not added twice if the script fails
     if not "test" in row:
-        mark_notification_as_read(row["id"], env_vars = tw_handler.env)
+        mark_notification_as_read(row["id"], env_vars=tw_handler.env)
     tw_handler.process_gh_notification(
         GhNotification.from_notification_dict(row.to_dict())
     )
@@ -29,8 +29,9 @@ def main(args=None):
     taskwarrior_handler = TaskwarriorHandler.from_config(
         Path("~/.config/gh_taskw.toml").expanduser()
     )
+
     df = get_notifications(
-        log_fn=taskwarrior_handler.logfile, env=taskwarrior_handler.env
+        log_fn=taskwarrior_handler.logdir, env=taskwarrior_handler.env
     )
     if not df.empty:
         df.apply(lambda x: process_row(x, taskwarrior_handler), axis=1)

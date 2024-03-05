@@ -1,7 +1,9 @@
 import json
 import os
 import subprocess
+import sys
 import tomllib
+from loguru import logger
 from pathlib import Path
 from typing import Optional
 
@@ -35,7 +37,8 @@ class TaskwarriorHandler:
         ignore_notification_reasons=None,
         high_priority_reasons=None,
         add_task_for_reasons=None,
-        logfile: Optional[Path] = None,
+        logdir: Optional[Path] = None,
+        loglevel: str = "ERROR",
         notifier: Optional[Notifier] = None,
         github_token: Optional[str] = None,
     ):
@@ -47,13 +50,28 @@ class TaskwarriorHandler:
         self.add_task_for_reasons = add_task_for_reasons or []
         self.high_priority_reasons = high_priority_reasons or []
 
-        self.logfile = logfile
+        self.logdir = logdir
 
         self.tw = TaskWarrior()
 
         self.notifier: Optional[Notifier] = notifier
 
         self.env = self._set_env()
+        self._setup_logger(loglevel)
+
+    def _setup_logger(self, loglevel: str):
+        if self.logdir:
+            self.logdir.mkdir(parents=True, exist_ok=True)
+            logdir = self.logdir
+        else:
+            logdir = sys.stderr
+
+        logger.add(
+            logdir / "gh_taskw.log",
+            rotation="500 MB",
+            level=loglevel,
+            format="{time} {level} {message}",
+        )
 
     def _set_env(self):
         env = os.environ.copy()
@@ -85,8 +103,8 @@ class TaskwarriorHandler:
             tasknote_handler = None
 
         # check if logfile is set
-        toml_dict["logfile"] = (
-            Path(toml_dict["logfile"]).expanduser() if "logfile" in toml_dict else None
+        toml_dict["logdir"] = (
+            Path(toml_dict["logdir"]).expanduser() if "logdir" in toml_dict else None
         )
 
         # check if gh token is set
@@ -106,6 +124,7 @@ class TaskwarriorHandler:
         """
         Processes a GitHub notification, adding a task and a tasknote to Taskwarrior.
         """
+        logger.debug(f"Processing notification: {gh_notification}")
         if gh_notification.reason in self.ignore_notification_reasons:
             return
 

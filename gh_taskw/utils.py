@@ -13,6 +13,7 @@ import subprocess
 import json
 from typing import Optional
 import pandas as pd
+from loguru import logger
 
 
 def run_command(cmd, env_vars: Optional[dict] = None):
@@ -76,25 +77,14 @@ def log_errors(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            run_command(
-                [
-                    "notify-send",
-                    "GitHub",
-                    f"Error: {str(e)}",
-                    "-u",
-                    "critical",
-                    "-t",
-                    "10000",
-                    "-i",
-                    "error",
-                ]
-            )
+            logger.error(f"Error: {str(e)}")
 
     return wrapper
 
 
 def mark_notification_as_read(notification_id, env_vars: Optional[dict] = None):
     # API command to mark a notification as read
+    logger.debug(f"Marking notification {notification_id} as read")
     run_command(
         [
             "gh",
