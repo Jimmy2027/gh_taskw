@@ -152,6 +152,7 @@ class TaskwarriorHandler:
         """
         Adds a task to Taskwarrior and returns the task ID.
         """
+        logger.info(f"Adding task for GitHub notification: {gh_notification}")
 
         kwargs = (
             {"priority": "H"}
@@ -167,6 +168,9 @@ class TaskwarriorHandler:
             )
 
             if not task_exists:
+                logger.info(
+                    f"No existing task found for GitHub notification: {gh_notification}. Creating new task."
+                )
                 added_task = Task(
                     self.tw,
                     description=f"{gh_notification.reason}: {gh_notification.subject}",
@@ -176,8 +180,17 @@ class TaskwarriorHandler:
                     **kwargs,
                 )
                 added_task.save()
+                logger.info(f"New task created with ID: {added_task._data['id']}")
+            else:
+                logger.info(
+                    f"Task already exists for GitHub notification: {gh_notification}"
+                )
 
             return added_task._data["id"]
+        else:
+            logger.info(
+                f"GitHub notification reason {gh_notification.reason} not in add_task_for_reasons. Task not added."
+            )
 
     def add_tasknote(self, gh_notification: GhNotification, task_id: int):
         """
@@ -197,13 +210,15 @@ class TaskwarriorHandler:
         """
         Close all tasks for closed pr's.
         """
-        # Couldn't find out how to do this properly in the tasklib doc
-        # so this is a bit ugly...
+        logger.info("Starting to handle closed PRs")
+
         pr_tasks = self.tw.tasks.pending().filter(tags=["github", "review_requested"])
-        print(pr_tasks)
+        logger.debug(f"Found {len(pr_tasks)} PR tasks")
 
         for pr_task_obj in pr_tasks._result_cache:
             pr_task_data = pr_task_obj._data
+            logger.debug(f"Processing PR task {pr_task_obj}")
+
             if pr_task_data.get("githuburl"):
                 repo = pr_task_data["project"]
                 if "pull" in pr_task_data["githuburl"]:
@@ -216,6 +231,7 @@ class TaskwarriorHandler:
                         "Accept: application/vnd.github+json",
                         f"/repos/{owner}/{repo}/pulls/{pr_id}",
                     ]
+                    logger.debug(f"Running command: {' '.join(gh_api_cmd)}")
 
                     pr_dict = json.loads(
                         subprocess.check_output(gh_api_cmd, env=self.env).decode(
@@ -231,6 +247,7 @@ class TaskwarriorHandler:
                 pr_id = pr_task_data["description"].split(":")[-1].strip()
 
             if is_closed:
+                logger.info(f"PR {pr_id} is closed. Closing task {pr_task_obj}")
                 self.notifier.notify(
                     NotifierNotification(
                         title="GitHub",
@@ -240,3 +257,6 @@ class TaskwarriorHandler:
                 )
                 # mark task as done
                 pr_task_obj.done()
+                logger.debug(f"Task {pr_task_obj} marked as done")
+
+        logger.info("Finished handling closed PRs")

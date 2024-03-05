@@ -30,9 +30,12 @@ def main(args=None):
         Path("~/.config/gh_taskw.toml").expanduser()
     )
 
-    df = get_notifications(
-        log_fn=taskwarrior_handler.logdir, env=taskwarrior_handler.env
+    log_fn = (
+        taskwarrior_handler.logdir / "gh_notifications.json"
+        if taskwarrior_handler.logdir
+        else None
     )
+    df = get_notifications(log_fn=log_fn, env=taskwarrior_handler.env)
     if not df.empty:
         df.apply(lambda x: process_row(x, taskwarrior_handler), axis=1)
 
