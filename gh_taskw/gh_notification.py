@@ -18,6 +18,7 @@ def get_url(notification_dict):
         "subject" in notification_dict
         and isinstance(notification_dict["subject"], dict)
         and "url" in notification_dict["subject"]
+        and notification_dict["subject"]["url"]
     ):
         return format_url(notification_dict["subject"]["url"])
     elif "url" in notification_dict:
