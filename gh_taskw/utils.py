@@ -31,6 +31,9 @@ def mylog(issue_dict: dict, logfile: Path = None):
     import json
     from datetime import datetime
 
+    if not issue_dict:
+        return
+
     if not logfile.exists():
         json_dict = {}
 
