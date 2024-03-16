@@ -152,7 +152,6 @@ class TaskwarriorHandler:
         """
         Adds a task to Taskwarrior and returns the task ID.
         """
-        logger.info(f"Adding task for GitHub notification: {gh_notification}")
 
         kwargs = (
             {"priority": "H"}
@@ -161,16 +160,26 @@ class TaskwarriorHandler:
         )
 
         if gh_notification.reason in self.add_task_for_reasons:
+            logger.info(f"Adding task for GitHub notification: {gh_notification}")
             tags = [gh_notification.reason, "github"]
+            tags_str = " ".join([f"+{e}" for e in tags])
+
             # check if task already exists
             task_exists = len(
-                self.tw.tasks.filter(githuburl=gh_notification.url, tags=tags).pending()
+                self.tw.tasks.pending().filter(
+                    f"githuburl:{gh_notification.url} {tags_str}"
+                )
             )
 
             if not task_exists:
                 logger.info(
                     f"No existing task found for GitHub notification: {gh_notification}. Creating new task."
                 )
+
+                assert (
+                    gh_notification.subject
+                ), f"task {gh_notification.__dict__} has no subject."
+
                 added_task = Task(
                     self.tw,
                     description=f"{gh_notification.reason}: {gh_notification.subject}",
