@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 from loguru import logger
 
 
@@ -20,15 +21,20 @@ def get_url(notification_dict):
     return url
 
 
-def get_attribute(notification_dict, attribute):
-    if attribute in notification_dict and isinstance(
-        notification_dict[attribute], dict
-    ):
-        return notification_dict[attribute].get(
-            "name" if attribute == "repository" else "login", ""
-        )
-    else:
-        return ""
+def get_reason(notification_dict):
+    return notification_dict["reason"]
+
+
+def get_subject(notification_dict):
+    return notification_dict["subject"]["title"]
+
+
+def get_repository(notification_dict):
+    return notification_dict["repository"]["name"]
+
+
+def get_owner(notification_dict):
+    return notification_dict["repository"]["owner"]["login"]
 
 
 @dataclass
@@ -45,10 +51,11 @@ class GhNotification:
     @classmethod
     def from_notification_dict(cls, notification_dict: dict):
         logger.debug(f"Creating GhNotification from {notification_dict}")
+
         url = get_url(notification_dict)
-        subject = get_attribute(notification_dict, "subject")
-        repository = get_attribute(notification_dict, "repository")
-        owner = get_attribute(notification_dict, "repository")
+        subject = get_subject(notification_dict)
+        repository = get_repository(notification_dict)
+        owner = get_owner(notification_dict)
 
         try:
             id = int(url.split("/")[-1])
