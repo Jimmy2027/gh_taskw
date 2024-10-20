@@ -3,8 +3,8 @@
 from pathlib import Path
 import sys
 import click
-from gh_taskw.gh_notification import GhNotification
 
+from gh_taskw.notification import GhNotification
 from gh_taskw.utils import (
     get_notifications,
     log_errors,
@@ -18,9 +18,7 @@ def process_row(row, tw_handler: TaskwarriorHandler):
     # mark the notification as read first to make sure a task is not added twice if the script fails
     if not "test" in row:
         mark_notification_as_read(row["id"], env_vars=tw_handler.env)
-    tw_handler.process_gh_notification(
-        GhNotification.from_notification_dict(row.to_dict())
-    )
+    tw_handler.process_gh_notification(GhNotification(**row.to_dict()))
 
 
 @click.command()

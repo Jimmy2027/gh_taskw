@@ -1,6 +1,8 @@
 from dataclasses import dataclass
+from enum import StrEnum
 
 from loguru import logger
+from pydantic import AnyUrl, BaseModel, ConfigDict, Field, field_validator
 
 
 def get_url(notification_dict):
@@ -37,42 +39,46 @@ def get_owner(notification_dict):
     return notification_dict["repository"]["owner"]["login"]
 
 
-@dataclass
-class GhNotification:
-    """Base class for GitHub notification."""
+class Reason(StrEnum):
+    ASSIGN = "assign"
+    AUTHOR = "author"
+    COMMENT = "comment"
+    INVITATION = "invitation"
+    MANUAL = "manual"
+    MENTION = "mention"
+    REVIEW_REQUESTED = "review_requested"
+    SECURITY_ALERT = "security_alert"
+    STATE_CHANGE = "state_change"
+    SUBSCRIBED = "subscribed"
+    TEAM_MENTION = "team_mention"
+    CI_ACTIVITY = "ci_activity"
 
-    reason: str
-    subject: str
-    repository: str
-    url: str
-    owner: str
-    id: int
 
-    @classmethod
-    def from_notification_dict(cls, notification_dict: dict):
-        logger.debug(f"Creating GhNotification from {notification_dict}")
+class Type(StrEnum):
+    ISSUE = "Issue"
+    PULL_REQUEST = "PullRequest"
+    CHECK_SUITE = "CheckSuite"
+    SECURITY_ADVISORY = "SecurityAdvisory"
+    PULL_REQUEST_REVIEW = "PullRequestReview"
+    PULL_REQUEST_REVIEW_COMMENT = "PullRequestReviewComment"
+    COMMIT_COMMENT = "CommitComment"
+    ISSUE_COMMENT = "IssueComment"
+    RELEASE = "Release"
+    REPOSITORY_VULNERABILITY_ALERT = "RepositoryVulnerabilityAlert"
 
-        url = get_url(notification_dict)
-        subject = get_subject(notification_dict)
-        repository = get_repository(notification_dict)
-        owner = get_owner(notification_dict)
 
-        try:
-            id = int(url.split("/")[-1])
-        except ValueError:
-            logger.error(f"Could not extract ID from URL: {url}")
-            id = 0
+class Subject(BaseModel):
+    title: str
+    url: AnyUrl
+    latest_comment_url: AnyUrl
+    type: Type
 
-        return cls(
-            reason=notification_dict["reason"],
-            subject=subject,
-            repository=repository,
-            url=url,
-            owner=owner,
-            id=id,
-        )
 
-    def __post_init__(self):
-        if self.reason == "ci_activity":
-            workflow_name = self.subject.split(" ")[0]
-            self.url = f"https://github.com/{self.owner}/{self.repository}/actions/workflows/{workflow_name}.yml"
+class Repository(BaseModel):
+    id: str
+    name: str
+    full_name: str
+    html_url: AnyUrl
+    description: str
+    url: AnyUrl
+    owner: dict

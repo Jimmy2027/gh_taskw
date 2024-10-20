@@ -9,7 +9,7 @@ from typing import Optional
 
 from tasklib import TaskWarrior, Task
 
-from gh_taskw.gh_notification import GhNotification
+from gh_taskw.notification import GhNotification
 from gh_taskw.notifier import Notifier, NotifierNotification
 
 
