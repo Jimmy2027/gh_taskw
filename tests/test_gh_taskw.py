@@ -5,7 +5,7 @@
 from pathlib import Path
 import subprocess
 import tempfile
-from gh_taskw.notification import Notification
+from gh_taskw.notification import GhNotification
 from gh_taskw.taskwarrior_handler import TaskwarriorHandler
 
 from gh_taskw import cli
@@ -83,13 +83,13 @@ def get_log():
     logfn = Path("~/.local/logs/gh_taskw_.json").expanduser()
 
     with open(logfn, "r") as f:
-        log_dict = {k:v for k,v in json.load(f).items() if v}
+        log_dict = {k: v for k, v in json.load(f).items() if v}
 
     # the keys are the dates. Get the last one
     last_log = [d for k in sorted(log_dict.keys()) for d in log_dict[k] if log_dict[k]]
-    for log in last_log:
-        notification = Notification(**log)
-        fsfsag = 0
+    logs_list = [GhNotification(**log) for log in last_log]
+    types = {log.subject.type for log in logs_list}
+
     df = pd.DataFrame(last_log)
     df["test"] = True
 

@@ -2,14 +2,15 @@ import json
 import os
 import subprocess
 import sys
-import tomllib
-from loguru import logger
 from pathlib import Path
 from typing import Optional
 
-from tasklib import TaskWarrior, Task
+import tomllib
+from loguru import logger
+from tasklib import Task, TaskWarrior
 
-from gh_taskw.notification import GhNotification
+from gh_taskw.notification import GhNotification, Reason
+from gh_taskw.notification_handlers import NOTIFICATION_REASON_TO_HANDLER
 from gh_taskw.notifier import Notifier, NotifierNotification
 
 
@@ -46,9 +47,11 @@ class TaskwarriorHandler:
 
         self.tasknote_fn = None
         self.gh_token = github_token
-        self.ignore_notification_reasons: list[str] = ignore_notification_reasons or []
+        self.ignore_notification_reasons: list[Reason] = (
+            ignore_notification_reasons or []
+        )
         self.add_task_for_reasons = add_task_for_reasons or []
-        self.high_priority_reasons = high_priority_reasons or []
+        self.high_priority_reasons: list[Reason] = high_priority_reasons or []
 
         self.logdir = logdir
 
@@ -80,6 +83,7 @@ class TaskwarriorHandler:
         return env
 
     def _send_notification(self, notifier_notification: NotifierNotification):
+        return
         if self.notifier:
             self.notifier.notify(notifier_notification)
 
@@ -128,19 +132,9 @@ class TaskwarriorHandler:
         if gh_notification.reason in self.ignore_notification_reasons:
             return
 
-        url = gh_notification.url
-
         # send a notification to the system
         self._send_notification(
-            NotifierNotification(
-                title="GitHub",
-                body=f"{gh_notification.reason}: {gh_notification.subject}\n{url}",
-                urgency=(
-                    "critical"
-                    if gh_notification.reason in self.high_priority_reasons
-                    else "normal"
-                ),
-            )
+            NOTIFICATION_REASON_TO_HANDLER[gh_notification.reason](gh_notification)
         )
 
         task_id = self.add_task(gh_notification)

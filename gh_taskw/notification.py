@@ -178,6 +178,7 @@ class Type(StrEnum):
     ISSUE_COMMENT = "IssueComment"
     RELEASE = "Release"
     REPOSITORY_VULNERABILITY_ALERT = "RepositoryVulnerabilityAlert"
+    REPOSITORY_INVITATION = "RepositoryInvitation"
 
 
 class Subject(BaseModel):
@@ -191,7 +192,7 @@ class Subject(BaseModel):
 class GhNotification(BaseModel):
     id: str
     repository: Repository
-    subject: Subject  # Assuming subject is a dictionary with dynamic content, you can modify it with a more specific structure if needed
+    subject: Subject
     reason: Reason
     unread: bool
     updated_at: str
