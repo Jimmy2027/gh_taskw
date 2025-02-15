@@ -1,26 +1,23 @@
 """Console script for gh_taskw."""
 
-from pathlib import Path
 import sys
-import click
-from gh_taskw.gh_notification import GhNotification
+from pathlib import Path
 
+import click
+
+from gh_taskw.notification import GhNotification
+from gh_taskw.taskwarrior_handler import TaskwarriorHandler
 from gh_taskw.utils import (
     get_notifications,
-    log_errors,
     mark_notification_as_read,
 )
-from gh_taskw.taskwarrior_handler import TaskwarriorHandler
 
 
-@log_errors
 def process_row(row, tw_handler: TaskwarriorHandler):
     # mark the notification as read first to make sure a task is not added twice if the script fails
-    if not "test" in row:
+    if "test" not in row and False:
         mark_notification_as_read(row["id"], env_vars=tw_handler.env)
-    tw_handler.process_gh_notification(
-        GhNotification.from_notification_dict(row.to_dict())
-    )
+    tw_handler.process_gh_notification(GhNotification(**row.to_dict()))
 
 
 @click.command()
@@ -36,10 +33,9 @@ def main(args=None):
         else None
     )
     df = get_notifications(log_fn=log_fn, env=taskwarrior_handler.env)
+    df = df.head(10)
     if not df.empty:
         df.apply(lambda x: process_row(x, taskwarrior_handler), axis=1)
-
-    taskwarrior_handler.handle_closed_prs()
 
 
 if __name__ == "__main__":
